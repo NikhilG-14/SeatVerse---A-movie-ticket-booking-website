@@ -6,6 +6,7 @@ import { ArrowRightIcon, ClockIcon, Grid2X2Icon } from "lucide-react";
 import isoTimeFormat from "../lib/isoTimeFormat";
 import BlurCircle from "../components/BlurCircle";
 import toast from "react-hot-toast";
+import { useAppContext } from "../context/AppContext";
 
 const SeatLayout = () => {
   const groupRows = [
@@ -20,18 +21,22 @@ const SeatLayout = () => {
   const [selectedSeats, setSelectedSeats] = useState([]);
   const [selectedTime, setSelectedTime] = useState(null);
   const [show, setShow] = useState(null);
+  const [occupiedSeats, setOccupiedSeats] = useState([])
 
   const navigate = useNavigate();
 
+  const {axios, getToken, user} = useAppContext();
+
   const getShow = async () => {
-    const show = dummyShowsData.find((show) => show._id === id);
-    if (show) {
-      setShow({
-        movie: show,
-        dateTime: dummyDateTimeData,
-      });
+    try {
+      const {data} = await axios.get(`/api/show/${id}`)
+      if(data.success) {
+        setShow(data)
+      }
+    } catch (error) {
+      console.log(error)
     }
-  };
+  }
 
   const handleSeatClick = (seatId) => {
     if (!selectedTime) {
@@ -39,6 +44,9 @@ const SeatLayout = () => {
     }
     if (!selectedSeats.includes(seatId) && selectedSeats.length > 4) {
       return toast("You can only select up to 5 seats", { icon: "⚠️" });
+    }
+    if(occupiedSeats.includes(seatId)) {
+      return toast("This seat is already booked.")
     }
     setSelectedSeats((prev) =>
       prev.includes(seatId)
@@ -57,10 +65,11 @@ const SeatLayout = () => {
             <button
               key={seatId}
               onClick={() => handleSeatClick(seatId)}
-              className={`h-8 w-8 rounded border border-primary/60 cursor-pointer ${
+              className={`h-8 w-8 rounded border border-primary/60 cursor-pointer
+                 ${
                 selectedSeats.includes(seatId) ? "bg-primary text-white" : ""
-              }`}
-            >
+              }
+              ${occupiedSeats.includes(seatId) && "opacity-50"}`}>
               {seatId}
             </button>
           );
@@ -69,13 +78,52 @@ const SeatLayout = () => {
     </div>
   );
 
+  const getOccupiedSeats = async () => {
+    try {
+      const {data} = await axios.get(`/api/booking/seats/${selectedTime.showId}`)
+      if(data.success) {
+        setOccupiedSeats(data.occupiedSeats)
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+
+  const bookTickets = async () => {
+    try {
+      if(!user) return toast.error('Please login to proceed')
+        if(!selectedTime|| !selectedSeats.length) return toast.error('Please select a time and seats');
+
+      const {data} = await axios.post('/api/booking/create', {showId: selectedTime.showId, selectedSeats}, {headers: { Authorization: `Bearer ${await getToken()}` }});
+
+      if(data.success) {
+        toast.success(data.message)
+        navigate('/my-bookings')
+      } else {
+        toast.error(data.message)
+      }
+    } catch (error) {
+      toast.error(error.message)
+    }
+  }
+
   useEffect(() => {
     getShow();
   }, []);
 
+  useEffect(() => {
+    if(selectedTime) {
+      getOccupiedSeats()
+    }
+  }, [selectedTime]);
+
   return show ? (
     <div className="flex flex-col md:flex-row px-6 md:px-16 lg:px-40 py-30 md:pt-50">
+
       {/*Available Timings */}
+
       <div className="w-60 bg-primary/10 border border-primary/20 rounded-lg py-10 h-max md:sticky md:top-30">
         <p className="text-lg font-semibold px-6">Available Timings</p>
         <div className="mt-5 space-y-1">
@@ -116,7 +164,7 @@ const SeatLayout = () => {
           </div>
         </div>
 
-        <button onClick={()=> navigate('/my-bookings')} className="flex items-center gap-1 mt-20 px-10 py-3 text-sm bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer active: scale-95">
+        <button onClick={bookTickets} className="flex items-center gap-1 mt-20 px-10 py-3 text-sm bg-primary hover:bg-primary-dull transition rounded-full font-medium cursor-pointer active: scale-95">
           Proceed to Checout
           <ArrowRightIcon strokeWidth={3} className="w-4 h-4" />
         </button>
