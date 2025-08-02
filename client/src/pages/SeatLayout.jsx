@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { assets, dummyDateTimeData, dummyShowsData } from "../assets/assets";
 import Loading from "../components/Loading";
 import { ArrowRightIcon, ClockIcon, Grid2X2Icon } from "lucide-react";
 import isoTimeFormat from "../lib/isoTimeFormat";
@@ -99,8 +98,7 @@ const SeatLayout = () => {
       const {data} = await axios.post('/api/booking/create', {showId: selectedTime.showId, selectedSeats}, {headers: { Authorization: `Bearer ${await getToken()}` }});
 
       if(data.success) {
-        toast.success(data.message)
-        navigate('/my-bookings')
+        window.location.href = data.url;
       } else {
         toast.error(data.message)
       }
