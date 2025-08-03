@@ -123,7 +123,10 @@ export const regeneratePaymentLink = async (req, res) => {
             return res.status(400).json({ success: false, message: "Booking ID is required" });
         }
 
-        const booking = await Booking.findById(bookingId).populate('show');
+        const booking = await Booking.findById(bookingId).populate({
+            path: 'show',
+            populate: { path: 'movie', model: 'Movie' }
+        });
         console.log("Booking found:", booking);
 
         if (!booking) {
