@@ -112,3 +112,53 @@ export const getOccupiedSeats = async (req, res) => {
         res.json({success: false, message: error.message})
     }
 }
+
+export const regeneratePaymentLink = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
+        const booking = await Booking.findById(bookingId).populate('show');
+
+        if (!booking) {
+            return res.status(404).json({ success: false, message: "Booking not found" });
+        }
+
+        if (booking.isPaid) {
+            return res.status(400).json({ success: false, message: "Booking is already paid" });
+        }
+
+        // Initialize Stripe
+        const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+
+        // Create new Stripe Checkout session
+        const line_items = [{
+            price_data: {
+                currency: 'usd',
+                product_data: {
+                    name: booking.show.movie.title
+                },
+                unit_amount: Math.floor(booking.amount) * 100
+            },
+            quantity: 1
+        }];
+
+        const session = await stripeInstance.checkout.sessions.create({
+            success_url: `${req.headers.origin}/my-bookings`,
+            cancel_url: `${req.headers.origin}/my-bookings`,
+            line_items: line_items,
+            mode: 'payment',
+            metadata: {
+                bookingId: booking._id.toString()
+            },
+            expires_at: Math.floor(Date.now() / 1000) + 30 * 60,  // Expires in 30 minutes
+        });
+
+        booking.paymentLink = session.url;
+        await booking.save();
+
+        res.json({ success: true, url: session.url });
+
+    } catch (error) {
+        console.log(error.message);
+        res.status(500).json({ success: false, message: error.message });
+    }
+}
