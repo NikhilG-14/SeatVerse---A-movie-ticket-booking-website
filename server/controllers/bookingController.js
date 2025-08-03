@@ -115,8 +115,16 @@ export const getOccupiedSeats = async (req, res) => {
 
 export const regeneratePaymentLink = async (req, res) => {
     try {
+        console.log("regeneratePaymentLink called with body:", req.body);
         const { bookingId } = req.body;
+        console.log("Booking ID:", bookingId);
+        
+        if (!bookingId) {
+            return res.status(400).json({ success: false, message: "Booking ID is required" });
+        }
+
         const booking = await Booking.findById(bookingId).populate('show');
+        console.log("Booking found:", booking);
 
         if (!booking) {
             return res.status(404).json({ success: false, message: "Booking not found" });
@@ -128,6 +136,7 @@ export const regeneratePaymentLink = async (req, res) => {
 
         // Initialize Stripe
         const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY);
+        console.log("Stripe initialized");
 
         // Create new Stripe Checkout session
         const line_items = [{
@@ -141,9 +150,12 @@ export const regeneratePaymentLink = async (req, res) => {
             quantity: 1
         }];
 
+        const origin = req.headers.origin || 'http://localhost:5173'; // Fallback origin
+        console.log("Origin:", origin);
+
         const session = await stripeInstance.checkout.sessions.create({
-            success_url: `${req.headers.origin}/my-bookings`,
-            cancel_url: `${req.headers.origin}/my-bookings`,
+            success_url: `${origin}/my-bookings`,
+            cancel_url: `${origin}/my-bookings`,
             line_items: line_items,
             mode: 'payment',
             metadata: {
@@ -151,14 +163,16 @@ export const regeneratePaymentLink = async (req, res) => {
             },
             expires_at: Math.floor(Date.now() / 1000) + 30 * 60,  // Expires in 30 minutes
         });
+        console.log("Stripe session created:", session.id);
 
         booking.paymentLink = session.url;
         await booking.save();
+        console.log("Booking updated with new payment link");
 
         res.json({ success: true, url: session.url });
 
     } catch (error) {
-        console.log(error.message);
+        console.error("Error in regeneratePaymentLink:", error);
         res.status(500).json({ success: false, message: error.message });
     }
 }
