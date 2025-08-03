@@ -56,3 +56,39 @@ export const getAllBookings = async (req, res) => {
         res.json({success: false, message: error.message})
     }
 }
+
+// API to delete unpaid bookings and release seats
+export const deleteUnpaidBookings = async (req, res) => {
+    try {
+        // Find all unpaid bookings
+        const unpaidBookings = await Booking.find({ isPaid: false });
+        
+        let releasedSeatsCount = 0;
+        let deletedBookingsCount = 0;
+        
+        // For each unpaid booking, release the seats
+        for (const booking of unpaidBookings) {
+            const show = await Show.findById(booking.show);
+            if (show) {
+                // Release seats for this booking
+                booking.bookedSeats.forEach((seat) => {
+                    delete show.occupiedSeats[seat];
+                    releasedSeatsCount++;
+                });
+                show.markModified('occupiedSeats');
+                await show.save();
+            }
+            // Delete the booking
+            await Booking.findByIdAndDelete(booking._id);
+            deletedBookingsCount++;
+        }
+        
+        res.json({ 
+            success: true, 
+            message: `Released ${releasedSeatsCount} seats and deleted ${deletedBookingsCount} unpaid bookings` 
+        });
+    } catch (error) {
+        console.error(error);
+        res.json({success: false, message: error.message});
+    }
+}

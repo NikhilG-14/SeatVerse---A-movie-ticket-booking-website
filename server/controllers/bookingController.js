@@ -179,3 +179,38 @@ export const regeneratePaymentLink = async (req, res) => {
         res.status(500).json({ success: false, message: error.message });
     }
 }
+
+// Function to manually release seats for a booking (for admin use)
+export const releaseSeatsForBooking = async (req, res) => {
+    try {
+        const { bookingId } = req.body;
+        
+        if (!bookingId) {
+            return res.status(400).json({ success: false, message: "Booking ID is required" });
+        }
+
+        const booking = await Booking.findById(bookingId);
+        
+        if (!booking) {
+            return res.status(404).json({ success: false, message: "Booking not found" });
+        }
+
+        const show = await Show.findById(booking.show);
+        if (show) {
+            // Release seats for this booking
+            booking.bookedSeats.forEach((seat) => {
+                delete show.occupiedSeats[seat];
+            });
+            show.markModified('occupiedSeats');
+            await show.save();
+        }
+        
+        // Delete the booking
+        await Booking.findByIdAndDelete(bookingId);
+        
+        res.json({ success: true, message: "Seats released and booking deleted successfully" });
+    } catch (error) {
+        console.error("Error in releaseSeatsForBooking:", error);
+        res.status(500).json({ success: false, message: error.message });
+    }
+}

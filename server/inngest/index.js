@@ -30,7 +30,26 @@ const syncUserDeletion = inngest.createFunction(
     {event: 'clerk/user.deleted'},
     async ({event}) => {
         const {id} = event.data
-        await User.findByIdAndDelete(id)
+        // Find all unpaid bookings for this user
+        const unpaidBookings = await Booking.find({ user: id, isPaid: false });
+        
+        // For each unpaid booking, release the seats
+        for (const booking of unpaidBookings) {
+            const show = await Show.findById(booking.show);
+            if (show) {
+                // Release seats for this booking
+                booking.bookedSeats.forEach((seat) => {
+                    delete show.occupiedSeats[seat];
+                });
+                show.markModified('occupiedSeats');
+                await show.save();
+            }
+            // Delete the booking
+            await Booking.findByIdAndDelete(booking._id);
+        }
+        
+        // Delete the user
+        await User.findByIdAndDelete(id);
     }
 )
 
