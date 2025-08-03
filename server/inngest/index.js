@@ -55,14 +55,19 @@ const syncUserUpdation = inngest.createFunction(
         {id: 'release-seats-delete-booking'},
         {event: "app/checkpayment"},
         async ({ event, step })=>{
+        console.log("Inngest: releaseSeatsAndDeleteBooking started for bookingId:", event.data.bookingId);
         const tenMinutesLater = new Date(Date.now() + 10 * 60 * 1000);
+        console.log("Inngest: Sleeping until", tenMinutesLater);
         await step.sleepUntil('wait-for-10-minutes', tenMinutesLater);
+        console.log("Inngest: Woke up, checking payment status for bookingId:", event.data.bookingId);
         await step.run('check-payment-status', async()=>{
                 const bookingId = event.data.bookingId;
-                const booking = await Booking.findById(bookingId)
+                const booking = await Booking.findById(bookingId);
+                console.log("Inngest: Booking fetched:", booking);
 
                 // If payment is not made, release seats and delete booking
                 if(!booking.isPaid) {
+                    console.log("Inngest: Booking not paid, releasing seats and deleting booking:", bookingId);
                     const show = await Show.findById(booking.show);
                     booking.bookedSeats.forEach((seat) => {
                         delete show.occupiedSeats[seat]
@@ -70,6 +75,9 @@ const syncUserUpdation = inngest.createFunction(
                     show.markModified('occupiedSeats')
                     await show.save()
                     await Booking.findByIdAndDelete(booking._id)
+                    console.log("Inngest: Seats released and booking deleted for bookingId:", bookingId);
+                } else {
+                    console.log("Inngest: Booking already paid, no action taken for bookingId:", bookingId);
                 }
             }
         )
