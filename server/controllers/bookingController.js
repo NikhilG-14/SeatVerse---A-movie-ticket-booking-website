@@ -53,7 +53,7 @@ export const createBooking = async (req, res) =>{
         await showData.save();
 
         // Stripe Gateway Initialize
-        const stripeInsatnce = new stripe(process.env.STRIPE_SECRET_KEY)
+        const stripeInstance = new stripe(process.env.STRIPE_SECRET_KEY)
 
         //Creating line item for stripe
         const line_items = [{
@@ -67,9 +67,9 @@ export const createBooking = async (req, res) =>{
             quantity: 1
         }]
 
-        const session = await stripeInsatnce.checkout.sessions.create({
+        const session = await stripeInstance.checkout.sessions.create({
             success_url: `${origin}/loading/my-bookings`,
-            success_url: `${origin}/my-bookings`,
+            cancel_url: `${origin}/my-bookings`,
             line_items: line_items,
             mode: 'payment',
             metadata: {
