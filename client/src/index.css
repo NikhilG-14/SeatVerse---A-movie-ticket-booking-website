@@ -2,19 +2,19 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary: #f84565;
-  --color-primay-dull: #d63854;
+  --color-primary: #ef4444;       /* Crimson Red */
+  --color-primary-dull: #b91c1c;  /* Dark Red */
 }
 
 * {
   font-family: "Outfit", sans-serif;
   scrollbar-width: thin;
-  scrollbar-color: #787777 #1e1e1e;
+  scrollbar-color: #ef4444 #1c1c1c;
 }
 
 body {
-  color: white;
-  background-color: #09090b;
+  color: #f8fafc;                /* Off-white */
+  background-color: #1c1c1c;     /* Charcoal Black */
 }
 
 .no-scrollbar {
